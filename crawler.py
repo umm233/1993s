@@ -96,10 +96,10 @@ def download_jpg(url, name, filetype, foldername):
 
 
 def run(_arg=None):
-    paths = ['movie', 'show', 'movie_poster', 'show_poster']
-    for path in paths:
-        if not os.path.exists(path):
-            os.mkdir(path)
+    # paths = ['movie', 'show', 'movie_poster', 'show_poster']
+    # for path in paths:
+    #     if not os.path.exists(path):
+    #         os.mkdir(path)
     if _arg == 'mp4':
         with open('download.txt', 'r') as file:
             keys = list(set(file.readlines()))
