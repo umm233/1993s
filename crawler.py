@@ -2,6 +2,7 @@
 # coding=utf-8
 
 import os
+import sys
 import time
 import urllib
 
@@ -10,48 +11,17 @@ from lxml import etree
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-
-def list_page(url, foldername):
-    print('crawling : %s' % url)
-    chrome_options = Options()
-    chrome_options.add_argument('--headless')
-    chrome_options.add_argument('--disable-gpu')
-    driver = webdriver.Chrome(
-        executable_path='./chromedriver_win32/chromedriver.exe', chrome_options=chrome_options)
-    driver.set_window_size(1366, 768)
-    driver.get(url)
-    resp = driver.page_source
-    html = etree.HTML(resp)
-    driver.close()
-    driver.quit()
-
-    vkeys = html.xpath('//*[@class="stui-vodlist__thumb lazyload"]/@href')
-    vjpgs = html.xpath(
-        '//*[@class="stui-vodlist__thumb lazyload"]/@data-original')
-    vtitles = html.xpath('//*[@class="stui-vodlist__thumb lazyload"]/@title')
-
-    jobs = []
-    for i in range(len(vkeys)):
-        item = {}
-        vkeytemp = vkeys[i].split('/')[-1]
-        vkeytemp = vkeytemp.strip('.html')
-        item['vname'] = vtitles[i] + '_' + vkeytemp
-        item['vjpg'] = vjpgs[i]
-        try:
-            jobs.append(gevent.spawn(
-                download_jpg, item['vjpg'], item['vname'], 'jpg', foldername))
-        except Exception as err:
-            print(err)
-    gevent.joinall(jobs, timeout=2)
-
+site_url = ''
 
 def detail_page(url):
+    chrome_driver_path = './chromedriver_win32/chromedriver.exe'
     chrome_options = Options()
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--ignore-certificate-errors')
+    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = webdriver.Chrome(
-        executable_path='./chromedriver_win32/chromedriver.exe', chrome_options=chrome_options)
+        executable_path=chrome_driver_path, chrome_options=chrome_options)
     driver.set_window_size(1366, 768)
     driver.get(url)
     resp = driver.page_source
@@ -64,11 +34,11 @@ def detail_page(url):
     vlists = html.xpath(
         '((//ul[@class="stui-content__playlist clearfix"])[1])/li/a/@href')
     # print(vlists)
-    print("正在获取 %s 的下载链接, 目前一共有 %s 集" %(title, len(vlists)))
+    print("剧名: %s, 目前一共有 %d 集" %(title, len(vlists)))
     vjs = []
     # 切换到视频框frame
     for i in range(len(vlists)):
-        driver.get('https://www.zxzj.me' + vlists[i])
+        driver.get(site_url + vlists[i])
         print("==> 获取第%s集的下载链接" %(i+1))
         driver.switch_to.frame(
             driver.find_elements_by_tag_name("iframe")[2])
@@ -77,7 +47,7 @@ def detail_page(url):
         vjs.append(html.xpath(
             '//*[@class="dplayer-video dplayer-video-current"]/@src')[0])
         print(vjs[i])
-        time.sleep(2)
+        time.sleep(0.3)
 
     with open('./download-link.txt', 'w') as f:
         link_str = str(vjs).replace("[", "").replace("]", "").replace(",", "\n\n")
@@ -94,25 +64,27 @@ def download_jpg(url, name, filetype, foldername):
     print('download success :: %s' % (filepath))
     response.close()
 
+def download_video(id:str):
+    jobs = []
+    url = '{site_url}/detail/{id}.html'.format(site_url=site_url, id=id)
+    print(url)
 
-def run(_arg=None):
-    # paths = ['movie', 'show', 'movie_poster', 'show_poster']
-    # for path in paths:
-    #     if not os.path.exists(path):
-    #         os.mkdir(path)
-    if _arg == 'mp4':
-        with open('download.txt', 'r') as file:
-            keys = list(set(file.readlines()))
-        jobs = []
-        for key in keys:
-            url = 'https://www.zxzj.me/detail/%s' % key.strip()
-            print(url)
-            jobs.append(gevent.spawn(detail_page, url))
-        gevent.joinall(jobs, timeout=2)
+    jobs.append(gevent.spawn(detail_page, url))
+    gevent.joinall(jobs, timeout=2)
     print('finish !')
 
+def parse_url(url:str):
+    parsed_url = urllib.parse.urlparse(url)
+    domain = parsed_url.netloc
+    # 3969-1-1.html
+    last_param = url.split('/')[-1]
+    id = last_param.split('-')[0]
+    return domain, id
 
 if __name__ == '__main__':
-    run("mp4")
-    print("<== 获取成功，结果存放在download-link中")
+    _arg = str(sys.argv[1])
+    domain, id = parse_url(_arg)
+    site_url = 'https://{domain}'.format(domain=domain)
+    download_video(id=id)
+    print("<== 获取成功, 下载连接存放在download-link.txt中")
     os.system("pause")

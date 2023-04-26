@@ -16,11 +16,11 @@ Crawl poster and mp4 from zxzj----从「在线之家」批量获取视频的下�
 
 - 下载对应的`ChromeDriver`解压，命名为`chromedriver_win32`，放到文件夹`1993`内
 
-- 在`download.txt`中写入影剧的编号，如下图小谢尔顿第四季对应的就是“3038”
+- 将剧页面的 url 填到参数中：
 
-  ![](./png/get-num.png)
-
-- ```python crawler.py```
+  ```
+  python crawler.py https://xxx/video/xxx-1-1.html
+  ```
 
 - 待程序运行完毕，会在目录下的`download-link.txt`中生成该剧的每集的下载链接
 
